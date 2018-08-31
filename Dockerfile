@@ -27,6 +27,7 @@ RUN DEBIAN_FRONTEND=noninteractive \
 # App Env
 ENV php_conf /etc/php/7.2/fpm/php.ini
 ENV fpm_conf /etc/php/7.2/fpm/pool.d/www.conf
+ENV COMPOSER_VERSION 1.7.1
 
 #############################################################################################
 # Install Basic Requirements
@@ -37,6 +38,7 @@ RUN DEBIAN_FRONTEND=noninteractive \
 	&& add-apt-repository -y ppa:nginx/stable \
 	&& apt-get update \
 	&& apt-get install --no-install-recommends --no-install-suggests -q -y \
+		gcc make autoconf libc-dev pkg-config libmcrypt-dev php-pear \
 		cron \
 		iputils-ping \
 		net-tools \
@@ -84,12 +86,22 @@ RUN DEBIAN_FRONTEND=noninteractive \
 	&& sed -i -e "s/pm.min_spare_servers = 1/pm.min_spare_servers = 2/g" ${fpm_conf} \
 	&& sed -i -e "s/pm.max_spare_servers = 3/pm.max_spare_servers = 4/g" ${fpm_conf} \
 	&& sed -i -e "s/pm.max_requests = 500/pm.max_requests = 200/g" ${fpm_conf} \
-	&& sed -i -e "s/^;clear_env = no$/clear_env = no/" ${fpm_conf} \
-	# Clean
-	&& apt-get purge -y --auto-remove $buildDeps \
+	&& sed -i -e "s/^;clear_env = no$/clear_env = no/" ${fpm_conf}
+
+RUN yes '' | pecl install -f mcrypt-1.0.1 \
+	&& echo "extension=mcrypt.so" > /etc/php/7.2/cli/conf.d/mcrypt.ini
+
+# Clean
+RUN apt-get purge -y --auto-remove $buildDeps \
 	&& apt-get autoremove -y \
 	&& apt-get clean \
 	&& rm -rf /var/lib/apt/lists/*
+
+RUN curl -o /tmp/composer-setup.php https://getcomposer.org/installer \
+	&& curl -o /tmp/composer-setup.sig https://composer.github.io/installer.sig \
+	&& php -r "if (hash('SHA384', file_get_contents('/tmp/composer-setup.php')) !== trim(file_get_contents('/tmp/composer-setup.sig'))) { unlink('/tmp/composer-setup.php'); echo 'Invalid installer' . PHP_EOL; exit(1); }" \
+	&& php /tmp/composer-setup.php --no-ansi --install-dir=/usr/local/bin --filename=composer --version=${COMPOSER_VERSION} \
+	&& rm -rf /tmp/composer-setup.php
 
 # Nginx Upstream config
 ADD ./conf/upstream.conf /etc/nginx/upstream.conf
