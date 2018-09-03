@@ -89,7 +89,8 @@ RUN DEBIAN_FRONTEND=noninteractive \
 	&& sed -i -e "s/^;clear_env = no$/clear_env = no/" ${fpm_conf}
 
 RUN yes '' | pecl install -f mcrypt-1.0.1 \
-	&& echo "extension=mcrypt.so" > /etc/php/7.2/cli/conf.d/mcrypt.ini
+	&& echo "extension=mcrypt.so" > /etc/php/7.2/cli/conf.d/mcrypt.ini \
+	&& echo "extension=mcrypt.so" > /etc/php/7.2/fpm/conf.d/mcrypt.ini
 
 # Clean
 RUN apt-get purge -y --auto-remove $buildDeps \
